@@ -17,12 +17,18 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
+import android.location.Location
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
+
+    private val fusedLocationProviderClient by lazy {
+        LocationServices.getFusedLocationProviderClient(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,7 +81,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun getLastLocation(){
-        Log.d("MapsActivity", "getLastLocation() called.")
+        if(hasLocationPermission()){
+            try{
+                fusedLocationProviderClient.lastLocation
+                    .addOnSuccessListener { location: Location? ->
+                        location?.let {
+                            val userLocation = LatLng(location.latitude, location.longitude)
+                            updateMapLocation(userLocation)
+                            addMarkerAtLocation(userLocation, "You")
+                        }
+                    }
+            } catch (e: SecurityException){
+                Log.e("MapsActivity", "SecurityException: ${e.message}")
+            }
+        } else {
+            requestPermissionLauncher.launch(ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private fun updateMapLocation(location: LatLng){
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 7f))
+    }
+
+    private fun addMarkerAtLocation(location: LatLng, title: String){
+        mMap.addMarker(MarkerOptions().title(title)
+            .position(location))
     }
 
     private fun hasLocationPermission() =
